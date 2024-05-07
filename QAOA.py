@@ -12,17 +12,34 @@ import sys
 import copy
 import ast
 
+if (len(sys.argv) != 4):
+    print("Wrong number of inputs !!!")
+    sys.exit()
+
 debug = False
 # Debug mode
 
-n_vertex = 6
-edges = [(0, 1), (0, 2), (1, 2), (1, 3), (2, 4), (3, 4), (3, 5)]
-# define graph
+case_index = int(sys.argv[3])
+# Index of the case
+
+if case_index == 0:
+    n_vertex = 6
+    edges = [(0, 1), (0, 2), (1, 2), (1, 3), (2, 4), (3, 4), (3, 5)]
+elif case_index == 1:
+    n_vertex = 6
+    edges = [(0, 2), (1, 2), (2, 3), (2, 4), (2, 5)]
+elif case_index == 2:
+    n_vertex = 10
+    edges = [(0, 9), (1, 9), (2, 9), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9), (8, 9)]
+else:
+    print("The case number doesn't exist !!!")
+    sys.exit()
+# select case and define graph
 
 depth = 1
 # repeat number of QAOA layers
 
-n_step = 20
+n_step = 40
 # optimization iterations
 
 op_type = [qaoa.min_vertex_cover,
@@ -36,12 +53,20 @@ op_type = [qaoa.min_vertex_cover,
 params = np.array([[0.1]*depth, [0.5]*depth], requires_grad=True)
 # initial parameters
 
-use_outer_simulator = True
-# whether to use outer simulator
+if sys.argv[1] == '1':
+    use_outer_simulator = True
+    outer_simulator_index = int(sys.argv[2])
+else:
+    use_outer_simulator = False
+    dev_index = int(sys.argv[2])
+# select simulator with program inputs
 
 outer_simualtor_string = ["SliQSim", "DDSIM" , "SliQSim_RUS"]
-outer_simulator_index = 0
-outer_simulator = outer_simualtor_string[outer_simulator_index]
+# outer_simulator_index = 0
+if use_outer_simulator:
+    outer_simulator = outer_simualtor_string[outer_simulator_index]
+else :
+    outer_simulator = ""
 # outer simulator used
 
 rz_precision = np.pi/512
@@ -55,7 +80,7 @@ if outer_simulator == "SliQSim" or debug:
 # set rz gate precision (temporary approach) and read needed file for SliQSim
 
 dev_string = ["default.qubit", "qiskit.aer", "lightning.gpu"]
-dev_index = 0
+# dev_index = 0
 # list and select the device
 
 if not use_outer_simulator:
@@ -65,9 +90,9 @@ else:
 # device used for pennylane, can be "qiskit.aer", "qulacs.simulator", etc.
 
 if use_outer_simulator:
-    output_fig_name = "./fig/QAOA_" + outer_simulator + ".png"
+    output_fig_name = "./fig/QAOA_" + outer_simulator + "_" + str(case_index) + ".png"
 else:
-    output_fig_name = "./fig/QAOA_" + dev_string[dev_index].replace('.','_') + ".png"
+    output_fig_name = "./fig/QAOA_" + dev_string[dev_index].replace('.','_') + "_" + str(case_index) + ".png"
 # Output figure name
 
 # ==========================================================================
@@ -133,9 +158,6 @@ def circuit_outer(params):
             for line in exe_result:
                 if line.startswith("The expectation value is"):
                     exp_v = float(line.split()[-1])
-                    # Weird bug when pstr_ops[i] has 2 elements (temporary fix)
-                    if len(pstr_ops[i]) == 2:
-                        exp_v = -exp_v
             # print(exp_v)
             result += pstr_coeffs[i] * exp_v
 
@@ -288,7 +310,7 @@ optimizer = qml.GradientDescentOptimizer()
 for i in range(n_step):
     print("%03d"%i, end = ' ', flush=True)
     if use_outer_simulator:
-        # TODO: Find a good way to update the parameter
+        # TODO(probably solved): Find a good way to update the parameter
         # Let the result of SliQSim converge to a good solution
         stepsize = 0.01
         if outer_simulator == "SliQSim":

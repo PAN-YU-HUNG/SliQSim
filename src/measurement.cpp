@@ -320,10 +320,10 @@ void Simulator::getExpectVal()
 {
 // ================================================================================================================================
 if (1) {
-    DdNode* expval_map = Cudd_Not(Cudd_ReadOne(manager));
+    DdNode* expval_map = Cudd_ReadOne(manager);
     for (int i : expval_qubits)
     {
-        DdNode* tmp = Cudd_bddXor(manager, expval_map, Cudd_Not(Cudd_bddIthVar(manager, i)));
+        DdNode* tmp = Cudd_bddXnor(manager, expval_map, Cudd_Not(Cudd_bddIthVar(manager, i)));
         Cudd_Ref(tmp);
         Cudd_RecursiveDeref(manager, expval_map);
         expval_map = tmp;
