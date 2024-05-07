@@ -104,6 +104,21 @@ First, make and compile the SliQSim executable.
 
 Then run QAOA.py (need pennylane package) (to test the code you can set use_outer_simulator to False)
 
+To execute python file, type
+```commandline
+python QAOA.py <use_outer_simulator> <simulator index> <case number>
+```
+For example, **python QAOA.py 1 0 0** will use the outer simulator 0 (SliQSim) to run Case 1
+
+Currently support simulator
+
+* qml.device 0 : defaulit.qubit
+* qml.device 1 : qiskit.aer (need <= Qiskit 0.45.0)
+* qml.device 2 : lightning.gpu (need to find a way to download plugin)
+* Outer simulator 0 : SliQSim
+* Outer simulator 1 : DDSIM
+* Outer simulator 2 : SliQSim_RUS
+
 Currently working :
 
 1. Combine SliQSim and RUS : We wish to deal with the following line in the QAOA qasm file : **rz(0.1) q[0];**. We will precompile the RUS circuits in the folder */rus/precompile* first. Then there are at least two ways to combine them. The first way is
