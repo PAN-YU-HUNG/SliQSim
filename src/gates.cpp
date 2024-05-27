@@ -832,11 +832,11 @@ void Simulator::PauliX(int iqubit)
         {
             /*
             tmp = Cudd_bddCompose(manager,  All_Bdd[i][j], Cudd_Not(Cudd_bddIthVar(manager, iqubit)), iqubit);
-            Cudd_Ref(tmp);            
-            
+            Cudd_Ref(tmp);
+
             Cudd_RecursiveDeref(manager, All_Bdd[i][j]);
             All_Bdd[i][j] = tmp;*/
-            
+
             //term1
             term1 = Cudd_Cofactor(manager, All_Bdd[i][j], Cudd_Not(Cudd_bddIthVar(manager, iqubit)));
             Cudd_Ref(term1);
@@ -1075,4 +1075,27 @@ void Simulator::measure(int qreg, int creg)
 {
     assert(creg < nClbits);
     measured_qubits_to_clbits[qreg].push_back(creg);
+}
+
+void Simulator::RUS(std::vector<int> mqubits, std::vector<int> cond){
+    std::unordered_map<int, int> qubit_to_cond;
+    for (int i = 0; i < mqubits.size(); i++)
+    {
+        assert((mqubits[i] >= 0) & (mqubits[i] < n));
+        qubit_to_cond[mqubits[i]] = cond[i];
+    }
+    measure_and_collapse(qubit_to_cond);
+}
+
+void Simulator::rz_RUS(int iqubit, double angle){
+    std::string gate_file = find_rz_RUS_gate(angle);
+    std::ifstream file(gate_file);
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    std::string gate = buffer.str();
+
+    replace_all(gate, "__ancilla_bit__", std::to_string(rus_anci));
+    replace_all(gate, "__compuation_bit__", std::to_string(iqubit));
+
+    sim_qasm_file(gate);
 }

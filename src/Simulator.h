@@ -26,12 +26,12 @@ public:
     // constructor and destructor
     Simulator(int type, int nshots, int seed, int bitSize, bool reorder, bool alloc) :
     n(0), r(bitSize), w(4), k(0), inc(3), shift(0), error(0),
-    normalize_factor(1), gatecount(0), NodeCount(0), isMeasure(0), shots(nshots), isReorder(reorder), isAlloc(alloc)
+    normalize_factor(1), rus_normalize_factor(1), gatecount(0), NodeCount(0), isMeasure(0), shots(nshots), isReorder(reorder), isAlloc(alloc)
     , sim_type(type), statevector("null"), gen(std::default_random_engine(seed)){
     }
     Simulator(int nshots, int seed, int bitSize, bool reorder, bool alloc) :
     n(0), r(bitSize), w(4), k(0), inc(3), shift(0), error(0),
-    normalize_factor(1), gatecount(0), NodeCount(0), isMeasure(0), shots(nshots), isReorder(reorder), isAlloc(alloc)
+    normalize_factor(1), rus_normalize_factor(1), gatecount(0), NodeCount(0), isMeasure(0), shots(nshots), isReorder(reorder), isAlloc(alloc)
     , sim_type(0), statevector("null"), gen(std::default_random_engine(seed)){
     }
     ~Simulator()  {
@@ -52,6 +52,8 @@ public:
     void PauliY(int iqubit);
     void PauliZ(std::vector<int> iqubit); // Z or CZ
     void measure(int qreg, int creg);
+    void RUS(std::vector<int> mqubits, std::vector<int> cond);
+    void rz_RUS(int iqubit, double angle);
 
     /* measurement */
     void getExpectVal();
@@ -61,7 +63,6 @@ public:
     /* simulation */
     void init_simulator(int n);
     void sim_qasm_file(std::string qasm);
-    void sim_qasm_file_VQE(std::string qasm);
     void sim_qasm(std::string qasm);
     void print_results();
 
@@ -69,7 +70,8 @@ public:
     void reorder();
     void decode_entries();
     void print_info(double runtime, size_t memPeak);
-    void setVQEParam(int _res, bool _usingVQE); // using VQE
+    void setUpRUS(int _rus);    // using RUS
+    void check_and_build_rus(const std::string& epsilon, const std::string& delta);
 
 private:
     DdManager *manager;
@@ -91,6 +93,7 @@ private:
     std::vector<std::vector<int>> measured_qubits_to_clbits; // empty if not measured
     std::string measure_outcome;
     double normalize_factor; // normalization factor used in measurement
+    double rus_normalize_factor; // normalization factor used in RUS
     DdNode *bigBDD; // big BDD used if measurement
     std::default_random_engine gen; // random generator
     std::unordered_map<DdNode *, double> Node_Table; // key: node, value: summed prob
@@ -106,6 +109,9 @@ private:
     double get_total_prob(DdNode *node, int kd2, int nVar, int nAnci_fourInt);
     double measure_probability(DdNode *node, int kd2, int nVar, int nAnci_fourInt, int edge);
     void measure_one(int position, int kd2, double H_factor, int nVar, int nAnci_fourInt, std::string *outcome);
+    void measure_and_collapse(std::unordered_map<int,int>& measured_qubits_to_clbits);
+    void build_bigBDD(int nAnci_oneInt, int nAnci_fourInt);
+    void collapse_to(std::unordered_map<int, int>& qubit_to_state, bool reset_to_zero=true);
 
     /* misc */
     void init_state(int *constants);
@@ -115,10 +121,13 @@ private:
     int overflow3(DdNode *g, DdNode *h, DdNode *crin);
     int overflow2(DdNode *g, DdNode *crin);
     void nodecount();
+    std::string find_rz_RUS_gate(const double& angle);
 
-    /* Using VQE */
-    int res;
-    bool usingVQE;
+    /* Using RUS */
+    bool usingRUS;
+    int rus_anci;// rus available when rus_anci >= 0
+    const std::string rus_gates_path="./rus/rus_precompile";
+    const std::string rus_syn_executable="./rus/rusSyn";
 
     // Clean up Simulator
     void clear() {

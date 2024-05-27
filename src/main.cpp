@@ -22,10 +22,11 @@ int main(int argc, char **argv)
     ("alloc", po::value<bool>()->default_value(1), "allocate new BDDs when overflow is detected.\n"
                                                     "0: do not allocate new BDDs. This may lead to numerical errors.\n"
                                                     "1: allocate new BDDs (default option).")
-    ("res", po::value<unsigned int>()->default_value(4), "define the resolution of rz gate angle.\n"
-                                                         "The input parameter should be the power of 2.\n"
-                                                         "4: use default 4 integers representation.\n"
-                                                         "other : incresed BDD numbers to support the resolution.")
+    ("rus", po::value<int>()->default_value(-1), "define ancilla qubit for rus computation.\n"
+                                                         "The input parameter should be non-negative integer.\n"
+                                                         "If the input is negative, the simulator will not perform RUS.")
+    ("rus_epsilon", po::value<std::string>()->default_value("1e-6"), "define epsilon for RUS computation.")
+    ("rus_delta", po::value<std::string>()->default_value("pi/32"), "define delta for RUS computation.")
     ;
 
     po::variables_map vm;
@@ -57,9 +58,12 @@ int main(int argc, char **argv)
     assert(shots > 0);
     Simulator simulator(type, shots, seed, r, isReorder, isAlloc);
 
-    // using VQE
-    int res = vm["res"].as<unsigned int>();
-    bool usingVQE = (res != 4);
+    // RUS
+    int rus = vm["rus"].as<int>();
+    simulator.setUpRUS(rus);
+    if(vm.count("rus")){
+        simulator.check_and_build_rus(vm["rus_epsilon"].as<std::string>(), vm["rus_delta"].as<std::string>());
+    }
 
     if (vm.count("sim_qasm"))
     {
@@ -77,8 +81,6 @@ int main(int argc, char **argv)
         }
 
         std::string inFile_str = strStream.str(); //str holds the content of the file
-        if (usingVQE)
-            simulator.setVQEParam(res, usingVQE);
         simulator.sim_qasm(inFile_str);
     }
 

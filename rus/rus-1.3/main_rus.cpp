@@ -152,6 +152,7 @@ int main(int ac, char *av[])
             fs::create_directories(output_folder_name);
             mpf_class precision;
             precision = RUS::parse_theta(precision_str);
+            std::string precision_str_clean = precision_str, epsilon_str_clean = epsilon_str;
 
             // ? change to +-pi/4 or pi/2~0 ?
             auto unit_count = mpf_class(ceil(M_PI / precision)).get_si(); // +-(pi-precision)
@@ -169,7 +170,8 @@ int main(int ac, char *av[])
                 if (debug_level >= 2)
                     cout << "Theta: " << theta << endl;
                 circuit res;
-                cout << "output: " << (output_folder_name + "/out" + std::to_string(i) + "_" + output_file_name + ".qasm") << endl;
+                if (debug_level >= 0)
+                    cout << "RUSsyn: writing output " << (output_folder_name + "/out" + std::to_string(i) + "_" + output_file_name + ".qasm") << endl;
                 std::ofstream ofs(output_folder_name + "/out" + std::to_string(i) + "_" + output_file_name + ".qasm");
                 if (abs(theta - (M_PI / 4) * mpf_class(theta / (M_PI / 4)).get_si()) < epsilon)
                 {
@@ -194,6 +196,16 @@ int main(int ac, char *av[])
                 else
                     rus.run(theta, res);
                 QasmGenerator::to_rus_qasm(res, ofs, qubit_name, ancil_name, false);
+            }
+            std::ofstream config_file(output_folder_name + "/config.yaml");
+            config_file << "angle_unit: " << precision_str_clean << endl;
+            config_file << "epsilon: " << epsilon_str_clean << endl;
+            for (int i = -unit_count + 1; i < unit_count; i++)
+            {
+                mpf_class theta = i * precision;
+                config_file << i << ": ";
+
+                config_file << "out" + std::to_string(i) + "_" + output_file_name + ".qasm" << endl;
             }
         }
     }

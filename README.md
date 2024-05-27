@@ -98,6 +98,8 @@ If you have any questions or suggestions, feel free to [create an issue](https:/
 
 ## Project : SliQSim on QAOA
 
+Thanks to [homuch](https://github.com/homuch) for implementing RUS synthesis, merging RUS gates into SliQSim, and adding multiprocessing in the QAOA.py
+
 For the detail of RUS usage, see [https://github.com/homuch/rus](https://github.com/homuch/rus)
 
 First, make and compile the SliQSim executable.
@@ -121,8 +123,10 @@ Currently support simulator
 
 Currently working :
 
-1. Combine SliQSim and RUS : We wish to deal with the following line in the QAOA qasm file : **rz(0.1) q[0];**. We will precompile the RUS circuits in the folder */rus/precompile* first. Then there are at least two ways to combine them. The first way is
+1. (Implemented!!!) Combine SliQSim and RUS : We wish to deal with the following line in the QAOA qasm file : **rz(0.1) q[0];**. We will precompile the RUS circuits in the folder */rus/precompile* first. Then there are at least two ways to combine them. The first way is
 directly read in the command rz(0.1) q[0]; and the SliQSim code can find the nearest angle among the precompile file and perform RUS for it (You may add the option --rus to indicate the use of RUS).
 The second way is find the nearest angle among the precompile file in the QAOA.py python code and write the corresponding circuit into the qasm file that will be executed by SliQSim.
 
 2. (Probably solved) Find the way to update parameters with SliQSim : Currently the performance of SliQSim is bad (not getting good solution). Need to find a good way to update parameters (such as the way to compute gradient, the choice of the stepsize etc.)
+
+3. Maybe run some circuits with arbitrary angle RZ gates ?
