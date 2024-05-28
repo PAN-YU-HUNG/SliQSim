@@ -12,12 +12,13 @@ import sys
 import copy
 import ast
 import multiprocessing
+import time
 
 if (len(sys.argv) != 4):
     print("Wrong number of inputs !!!")
     sys.exit()
 
-debug = False
+debug = True
 # Debug mode
 
 case_index = int(sys.argv[3])
@@ -105,7 +106,7 @@ else:
 
 # ==========================================================================
 
-def loop_task(i, basic_file_content, pstr_ops, pstr_coeffs, q_count, rz_precision):
+def loop_task_sliqsim_rus(i, basic_file_content, pstr_ops, pstr_coeffs, q_count, rz_precision):
     file_content = basic_file_content
 
     # expval
@@ -127,6 +128,26 @@ def loop_task(i, basic_file_content, pstr_ops, pstr_coeffs, q_count, rz_precisio
     for line in exe_result:
         if line.startswith("The expectation value is"):
             exp_v = float(line.split()[-1])
+    return pstr_coeffs[i] * exp_v
+
+def loop_task_sliqsim(i, basic_file_content, pstr_ops, pstr_coeffs):
+    file_content = basic_file_content
+
+    # expval
+    for op in pstr_ops[i]:
+        qubit_wire_z = int(op[1:].strip('()'))
+        file_content += ("exp_val q[%d]; \n" % (qubit_wire_z))
+
+    qasm_path_sliqsim = f"sliqsim{i}.qasm"
+    with open(qasm_path_sliqsim, 'w') as file:
+        file.write(file_content)
+
+    # execute
+    exe_result = os.popen("./SliQSim --sim_qasm " + qasm_path_sliqsim).read().split('\n')
+    for line in exe_result:
+        if line.startswith("The expectation value is"):
+            exp_v = float(line.split()[-1])
+    # print(exp_v)
     return pstr_coeffs[i] * exp_v
 
 def qaoa_layer(gamma, alpha):
@@ -173,27 +194,12 @@ def circuit_outer(params):
                     basic_file_content += ("%s q[%d]; \n" % (gate, qubit_wire))
 
         result = 0
-        for i in range(len(pstr_ops)):
-            file_content = basic_file_content
 
-            # expval
-            for op in pstr_ops[i]:
-                qubit_wire_z = int(op[1:].strip('()'))
-                file_content += ("exp_val q[%d]; \n" % (qubit_wire_z))
-
-            qasm_path_sliqsim = "sliqsim.qasm"
-            with open(qasm_path_sliqsim, 'w') as file:
-                file.write(file_content)
-
-            # execute
-            exe_result = os.popen("./SliQSim --sim_qasm " + qasm_path_sliqsim).read().split('\n')
-            for line in exe_result:
-                if line.startswith("The expectation value is"):
-                    exp_v = float(line.split()[-1])
-            # print(exp_v)
-            result += pstr_coeffs[i] * exp_v
-
+        args = [(i, basic_file_content, pstr_ops, pstr_coeffs) for i in range(len(pstr_ops))]
+        with multiprocessing.Pool(8) as pool:
+            result = sum(pool.starmap(loop_task_sliqsim, args))
         return np.array(result)
+
     elif outer_simulator == "DDSIM":
         qasm_string_original = circuit.qtape.to_openqasm()
 
@@ -259,7 +265,7 @@ def circuit_outer(params):
 
         args = [(i, basic_file_content, pstr_ops, pstr_coeffs, q_count, rz_precision) for i in range(len(pstr_ops))]
         with multiprocessing.Pool(8) as pool:
-            result = sum(pool.starmap(loop_task, args))
+            result = sum(pool.starmap(loop_task_sliqsim_rus, args))
         return np.array(result)
 
         # for i in range(len(pstr_ops)):
@@ -431,14 +437,25 @@ if debug:
     params = [[-0.2],[0.4]]
     print("Cost(default qubit) : " + str(circuit(params)))
 
+    start = time.time()
     outer_simulator = "SliQSim_RUS"
     print("Cost(SliQSim_RUS) : " + str(circuit_outer(params)))
-    # print(prob_circuit(params))
-    # outer_simulator = "SliQSim"
-    # print("Cost(SliQSim) : " + str(circuit_outer(params)))
+    end = time.time()
+    print("Time : " + str(end - start) + " sec")
+    # print(prob_circuit(params)
+
+    start = time.time()
+    outer_simulator = "SliQSim"
+    print("Cost(SliQSim) : " + str(circuit_outer(params)))
+    end = time.time()
+    print("Time : " + str(end - start) + " sec")
     # print(prob_circuit_outer(params, 100000))
+
+    start = time.time()
     outer_simulator = "DDSIM"
     print("Cost(DDSIM) : " + str(circuit_outer(params)))
+    end = time.time()
+    print("Time : " + str(end - start) + " sec")
     # print(prob_circuit_outer(params, 100000))
 
     sys.exit()
@@ -446,7 +463,8 @@ if debug:
 # Train the parameter
 optimizer = qml.GradientDescentOptimizer()
 for i in range(n_step):
-    print("%03d"%i, end = ' ', flush=True)
+    print("Step %03d"%i)
+    start_step = time.time()
     if use_outer_simulator:
         # TODO(probably solved): Find a good way to update the parameter
         # Let the result of SliQSim converge to a good solution
@@ -469,6 +487,8 @@ for i in range(n_step):
     else:
         params = optimizer.step(circuit, params)
         print("Cost : " + str(circuit(params)))
+    end_step = time.time()
+    print("Compute time for the step : " + str(end_step-start_step) + " sec")
 print()
 
 print("Optimal Parameters:")
